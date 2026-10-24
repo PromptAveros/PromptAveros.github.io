@@ -1,5 +1,5 @@
 import { isDemoContent } from "@/lib/content";
 
 export function DemoNotice() {
-  return isDemoContent ? <div className="demo-note">Demonstration content is shown. Connect Supabase and rebuild to publish your own library.</div> : null;
+  return isDemoContent ? <div className="demo-note">Demonstration content is shown. Publish a prompt in Supabase and rebuild to replace these examples with your library.</div> : null;
 }
