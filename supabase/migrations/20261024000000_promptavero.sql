@@ -157,11 +157,11 @@ CREATE OR REPLACE FUNCTION public.record_login_attempt(p_visitor_hash text)
 RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE result integer;
 BEGIN
-  INSERT INTO public.login_attempts (visitor_hash, window_started_at, attempts)
+  INSERT INTO public.login_attempts AS current_attempt (visitor_hash, window_started_at, attempts)
   VALUES (p_visitor_hash, now(), 1)
   ON CONFLICT (visitor_hash) DO UPDATE
-  SET attempts = CASE WHEN public.login_attempts.window_started_at < now() - interval '15 minutes' THEN 1 ELSE public.login_attempts.attempts + 1 END,
-      window_started_at = CASE WHEN public.login_attempts.window_started_at < now() - interval '15 minutes' THEN now() ELSE public.login_attempts.window_started_at END
+  SET attempts = CASE WHEN current_attempt.window_started_at < now() - interval '15 minutes' THEN 1 ELSE current_attempt.attempts + 1 END,
+      window_started_at = CASE WHEN current_attempt.window_started_at < now() - interval '15 minutes' THEN now() ELSE current_attempt.window_started_at END
   RETURNING attempts INTO result;
   RETURN result;
 END $$;
