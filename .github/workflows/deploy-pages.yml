@@ -33,7 +33,8 @@ jobs:
       - run: npm test
       - run: npm run build
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           NEXT_PUBLIC_SITE_URL: ${{ vars.PUBLIC_SITE_URL || 'https://promptaveros.github.io' }}
           NEXT_PUBLIC_BASE_PATH: ${{ vars.NEXT_PUBLIC_BASE_PATH || 'ROOT' }}
           NEXT_PUBLIC_API_URL: ${{ vars.PUBLIC_API_URL }}

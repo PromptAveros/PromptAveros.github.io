@@ -1,5 +1,5 @@
 name = "promptavero-api"
-main = "src/index.ts"
+main = "src/supabase-worker.ts"
 compatibility_date = "2026-10-24"
 workers_dev = true
 

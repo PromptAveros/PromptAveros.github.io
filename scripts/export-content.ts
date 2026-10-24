@@ -1,5 +1,5 @@
 import { writeFile } from "node:fs/promises";
-import { neon } from "@neondatabase/serverless";
+import { createClient } from "@supabase/supabase-js";
 import { loadEnvConfig } from "@next/env";
 import demoPrompts from "../src/data/prompts.demo.json";
 
@@ -18,57 +18,53 @@ async function writePromptTextFiles(rows: Array<{ slug: string; promptText: stri
 
 async function main() {
   loadEnvConfig(process.cwd());
-  if (!process.env.DATABASE_URL) {
-    if (process.env.REQUIRE_DATABASE === "true") throw new Error("DATABASE_URL is required for this production build.");
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    if (process.env.SUPABASE_URL || process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error("Set both SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
     await writeFile(sourceFile, JSON.stringify({ source: "demo" }, null, 2));
     await writeFile(generatedFile, "[]");
     await writePromptTextFiles(demoPrompts);
-    console.warn("DATABASE_URL is not set. Exporting the clearly labeled demonstration library.");
+    console.warn("Supabase is not configured. Exporting the clearly labeled demonstration library.");
   } else {
-    if (process.env.REQUIRE_DATABASE === "true") {
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-      if (!siteUrl || new URL(siteUrl).protocol !== "https:" || new URL(siteUrl).pathname !== "/" || new URL(siteUrl).search || new URL(siteUrl).hash) {
-        throw new Error("Set NEXT_PUBLIC_SITE_URL to the production HTTPS origin without a path.");
-      }
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+    if (siteUrl && (new URL(siteUrl).protocol !== "https:" || new URL(siteUrl).pathname !== "/" || new URL(siteUrl).search || new URL(siteUrl).hash)) {
+      throw new Error("Set NEXT_PUBLIC_SITE_URL to the production HTTPS origin without a path.");
     }
-    const sql = neon(process.env.DATABASE_URL);
-    const rows = await sql`
-    SELECT p.id::text, p.title, p.slug, p.description, p.prompt_text AS "promptText",
-      p.image_url AS "imageUrl", p.image_alt AS "imageAlt", c.name AS category,
-      c.slug AS "categorySlug", p.styles, p.featured, p.is_demo AS "isDemo",
-      p.aspect_ratio AS "aspectRatio", p.customization_tips AS tips,
-      p.seo_title AS "seoTitle", p.meta_description AS "metaDescription",
-      p.robots_index AS "robotsIndex",
-      to_char(COALESCE(p.published_at, p.created_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS "publishedAt"
-    FROM prompts p
-    LEFT JOIN categories c ON c.id = p.category_id
-    WHERE p.status = 'published'
-    ORDER BY COALESCE(p.published_at, p.created_at) DESC, p.id
-    `;
-    const publicPrompts = rows.map((row) => ({
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    });
+    const { data: rows, error } = await supabase.from("prompts")
+      .select("id,title,slug,description,prompt_text,image_url,image_alt,styles,featured,is_demo,aspect_ratio,customization_tips,seo_title,meta_description,robots_index,published_at,created_at,category:categories(name,slug)")
+      .eq("status", "published")
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .order("id", { ascending: true });
+    if (error) throw error;
+    const publicPrompts = (rows ?? []).map((row) => {
+      const category = Array.isArray(row.category) ? row.category[0] : row.category;
+      return {
     id: String(row.id),
     title: String(row.title),
     slug: String(row.slug),
     description: String(row.description),
-    promptText: String(row.promptText),
-    imageUrl: safeImageUrl(row.imageUrl),
-    imageAlt: String(row.imageAlt ?? ""),
-    category: String(row.category ?? "Uncategorized"),
-    categorySlug: String(row.categorySlug ?? "uncategorized"),
+    promptText: String(row.prompt_text),
+    imageUrl: safeImageUrl(row.image_url),
+    imageAlt: String(row.image_alt ?? ""),
+    category: String(category?.name ?? "Uncategorized"),
+    categorySlug: String(category?.slug ?? "uncategorized"),
     styles: Array.isArray(row.styles) ? row.styles.map(String) : [],
     featured: Boolean(row.featured),
-    isDemo: Boolean(row.isDemo),
-    robotsIndex: Boolean(row.robotsIndex),
-    aspectRatio: String(row.aspectRatio ?? "4:3"),
-    tips: String(row.tips ?? ""),
-    seoTitle: row.seoTitle == null ? null : String(row.seoTitle),
-    metaDescription: row.metaDescription == null ? null : String(row.metaDescription),
-    publishedAt: String(row.publishedAt),
-    }));
+    isDemo: Boolean(row.is_demo),
+    robotsIndex: Boolean(row.robots_index),
+    aspectRatio: String(row.aspect_ratio ?? "4:3"),
+    tips: String(row.customization_tips ?? ""),
+    seoTitle: row.seo_title == null ? null : String(row.seo_title),
+    metaDescription: row.meta_description == null ? null : String(row.meta_description),
+    publishedAt: String(row.published_at ?? row.created_at).slice(0, 10),
+      };
+    });
     await writeFile(generatedFile, JSON.stringify(publicPrompts, null, 2));
     await writeFile(sourceFile, JSON.stringify({ source: "database" }, null, 2));
     await writePromptTextFiles(publicPrompts.map((prompt) => ({ slug: String(prompt.slug), promptText: String(prompt.promptText) })));
-    console.info(`Exported ${publicPrompts.length} published prompt(s) from Neon.`);
+    console.info(`Exported ${publicPrompts.length} published prompt(s) from Supabase.`);
   }
 }
 

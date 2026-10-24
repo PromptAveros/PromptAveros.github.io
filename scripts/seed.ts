@@ -1,34 +1,46 @@
-import { neon } from "@neondatabase/serverless";
+import { createClient } from "@supabase/supabase-js";
 import { loadEnvConfig } from "@next/env";
 import demoPrompts from "../src/data/prompts.demo.json";
 
 async function main() {
   loadEnvConfig(process.cwd());
-  if (!process.env.DATABASE_URL) throw new Error("Set DATABASE_URL before seeding demo records.");
-  const sql = neon(process.env.DATABASE_URL);
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error("Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY before seeding demo records.");
+  const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
 
   for (const prompt of demoPrompts) {
-    const [category] = await sql`
-    INSERT INTO categories (name, slug, description)
-    VALUES (${prompt.category}, ${prompt.categorySlug}, ${`Demonstration category: ${prompt.category}.`})
-    ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
-    RETURNING id
-    `;
-    const [saved] = await sql`
-    INSERT INTO prompts (title, slug, description, prompt_text, image_url, image_alt, category_id,
-      styles, aspect_ratio, customization_tips, featured, status, is_demo, published_at)
-    VALUES (${prompt.title}, ${prompt.slug}, ${prompt.description}, ${prompt.promptText}, ${prompt.imageUrl},
-      ${prompt.imageAlt}, ${category.id}, ${prompt.styles}, ${prompt.aspectRatio}, ${prompt.tips},
-      ${prompt.featured}, 'published', true, ${prompt.publishedAt}::date)
-    ON CONFLICT (slug) DO NOTHING
-    RETURNING id::text
-    `;
+    const { data: category, error: categoryError } = await supabase.from("categories")
+      .upsert({ name: prompt.category, slug: prompt.categorySlug, description: `Demonstration category: ${prompt.category}.` }, { onConflict: "slug" })
+      .select("id")
+      .single();
+    if (categoryError) throw categoryError;
+    const { data: saved, error: promptError } = await supabase.from("prompts").upsert({
+      title: prompt.title,
+      slug: prompt.slug,
+      description: prompt.description,
+      prompt_text: prompt.promptText,
+      image_url: prompt.imageUrl,
+      image_alt: prompt.imageAlt,
+      category_id: category.id,
+      styles: prompt.styles,
+      aspect_ratio: prompt.aspectRatio,
+      customization_tips: prompt.tips,
+      featured: prompt.featured,
+      status: "published",
+      is_demo: true,
+      published_at: `${prompt.publishedAt}T00:00:00.000Z`,
+    }, { onConflict: "slug", ignoreDuplicates: true }).select("id").maybeSingle();
+    if (promptError) throw promptError;
     if (saved) console.info(`Seeded demonstration prompt: ${prompt.slug}`);
     for (const style of prompt.styles) {
       const styleSlug = style.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-      const [row] = await sql`INSERT INTO styles (name, slug) VALUES (${style}, ${styleSlug}) ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name RETURNING id`;
-      const [target] = await sql`SELECT id FROM prompts WHERE slug = ${prompt.slug}`;
-      await sql`INSERT INTO prompt_styles (prompt_id, style_id) VALUES (${target.id}, ${row.id}) ON CONFLICT DO NOTHING`;
+      const { data: row, error: styleError } = await supabase.from("styles").upsert({ name: style, slug: styleSlug }, { onConflict: "slug" }).select("id").single();
+      if (styleError) throw styleError;
+      const { data: target, error: targetError } = await supabase.from("prompts").select("id").eq("slug", prompt.slug).single();
+      if (targetError) throw targetError;
+      const { error: relationError } = await supabase.from("prompt_styles").upsert({ prompt_id: target.id, style_id: row.id });
+      if (relationError) throw relationError;
     }
   }
 }
