@@ -62,9 +62,16 @@ async function main() {
       };
     });
     await writeFile(generatedFile, JSON.stringify(publicPrompts, null, 2));
-    await writeFile(sourceFile, JSON.stringify({ source: "database" }, null, 2));
-    await writePromptTextFiles(publicPrompts.map((prompt) => ({ slug: String(prompt.slug), promptText: String(prompt.promptText) })));
-    console.info(`Exported ${publicPrompts.length} published prompt(s) from Supabase.`);
+    const hasPublishedPrompts = publicPrompts.length > 0;
+    await writeFile(sourceFile, JSON.stringify({ source: hasPublishedPrompts ? "database" : "demo" }, null, 2));
+    await writePromptTextFiles(hasPublishedPrompts
+      ? publicPrompts.map((prompt) => ({ slug: String(prompt.slug), promptText: String(prompt.promptText) }))
+      : demoPrompts);
+    if (hasPublishedPrompts) {
+      console.info(`Exported ${publicPrompts.length} published prompt(s) from Supabase.`);
+    } else {
+      console.warn("Supabase has no published prompts. Exporting the clearly labeled demonstration library.");
+    }
   }
 }
 

@@ -81,7 +81,6 @@ The API rejects other browser origins, verifies the session and CSRF token on ev
 2. Configure the GitHub Actions environment named `github-pages` (the environment used by the deployment workflow) with:
    - Variable `SUPABASE_URL`: Supabase project URL.
    - Secret `SUPABASE_SERVICE_ROLE_KEY`: server-side service-role key used only by the trusted build to export published content.
-   - Secret `SUPABASE_SERVICE_ROLE_KEY`: the Supabase service-role key, used only during the trusted build.
    - Secret `GITHUB_TOKEN` belongs in the Worker secret store, **not** the Pages workflow.
    - Variable `PUBLIC_SITE_URL`: HTTPS origin only; defaults to `https://promptaveros.github.io`.
    - Variable `PUBLIC_API_URL`: deployed Worker API origin.
@@ -97,6 +96,6 @@ See `.env.example` for placeholder-only values. `NEXT_PUBLIC_SITE_URL`, `NEXT_PU
 
 ## Validation and deployment limits
 
-`npm run lint`, `npm run typecheck`, `npm test`, and a static `npm run build` validate the local source. They do not verify a real Supabase project, deployed Worker, cross-site cookie behavior, GitHub token scope, or live deployment. Without Supabase credentials, the Pages workflow publishes the clearly marked demonstration library. Add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to the `github-pages` environment to export published Supabase content instead.
+`npm run lint`, `npm run typecheck`, `npm test`, and a static `npm run build` validate the local source. They do not verify a real Supabase project, deployed Worker, cross-site cookie behavior, GitHub token scope, or live deployment. Without Supabase credentials or published prompts, the Pages workflow publishes the clearly marked demonstration library. Once at least one prompt is published, it exports the published Supabase content instead.
 
 The current demo images use Unsplash image URLs and are not claims of prompt-generated results. Check licensing, attribution requirements, image stability, the legal templates, accessibility, and the production domain before launch. The sitemap intentionally omits `/admin`, search queries, and non-indexable prompt detail pages.
