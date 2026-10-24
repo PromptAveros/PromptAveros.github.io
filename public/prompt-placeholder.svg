@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-labelledby="title">
+  <title id="title">PromptAvero image placeholder</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#e0e7ff"/>
+      <stop offset="1" stop-color="#cffafe"/>
+    </linearGradient>
+    <radialGradient id="glow">
+      <stop stop-color="#fff" stop-opacity=".8"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <path fill="url(#bg)" d="M0 0h1200v900H0z"/>
+  <circle cx="850" cy="190" r="330" fill="url(#glow)"/>
+  <path fill="#818cf8" fill-opacity=".28" d="M0 625 290 390l208 184 210-260 492 440v146H0z"/>
+  <path fill="#4f46e5" fill-opacity=".18" d="m0 715 305-190 184 157 260-200 451 250v168H0z"/>
+  <g fill="#4f46e5" transform="translate(560 345)">
+    <path d="m38 0 12 37 37 12-37 12-12 37-12-37L-11 49l37-12z"/>
+    <circle cx="105" cy="99" r="9"/>
+    <circle cx="-15" cy="123" r="6"/>
+  </g>
+</svg>
